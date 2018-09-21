@@ -1,0 +1,18 @@
+{
+    "name": "icloud-drive-fs",
+    "private": true,
+    "main": "dist/index.js",
+    "dependencies": {
+        "fuse-bindings": "^2.11.2",
+        "yargs": "^12.0.2"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.1.0",
+        "babel-preset-env": "^1.7.0",
+        "eslint": "^5.6.0",
+        "eslint-config-google": "^0.10.0",
+        "gulp": "^4.0.0",
+        "gulp-babel": "^8.0.0",
+        "pump": "^3.0.0"
+    }
+}
