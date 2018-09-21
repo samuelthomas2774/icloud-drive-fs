@@ -1,9 +1,5 @@
-import iCloudService from '../..';
-import yargs from 'yargs';
 import path from 'path';
 import fuse from './fuse';
-
-const mount_path = yargs.argv.mount || process.platform !== 'win32' ? path.resolve(__dirname, '..', 'mount') : 'M:\\';
 
 function parsePath(path) {
     // What?
@@ -41,10 +37,7 @@ function parsePath(path) {
     };
 }
 
-(async () => {
-    const icloud = new iCloudService('apple-id', 'password');
-    await icloud.authenticate();
-
+export default async function mount(icloud, mount_path, mount_options) {
     const root = await icloud.drive['com.apple.CloudDocs'];
 
     const libraries = await icloud.drive.getAppLibraries();
@@ -175,22 +168,10 @@ function parsePath(path) {
             buffer.write(str);
             return str.length;
         }
-    }, [
+    }, mount_options || [
         'force',
         'noappledouble',
         'volname=iCloud Drive',
         'fsname=icloud#' + icloud.apple_id
     ]);
-
-    console.log('Filesystem mounted at ' + mount_path);
-
-    process.on('SIGINT', async () => {
-        try {
-            await fuse.unmount(mount_path);
-            console.log('Filesystem at ' + mount_path + ' unmounted');
-        } catch (err) {
-            console.log('Filesystem at ' + mount_path + ' not unmounted', err);
-            process.exit(1);
-        }
-    });
-})();
+}
