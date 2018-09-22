@@ -5,7 +5,7 @@ import readline from 'readline';
 import yargs from 'yargs';
 import fuse from './fuse';
 
-import iCloudService from '../../api';
+import iCloudService from '@samuelthomas2774/icloud-api';
 import mount from '..';
 
 const apple_id = process.argv[2];
@@ -21,6 +21,8 @@ function prompt(message) {
         });
     });
 }
+
+process.on('SIGINT', () => process.stdout.write('\u001B[28m'));
 
 (async () => {
     if (!apple_id) throw new Error('No Apple ID provided.');
