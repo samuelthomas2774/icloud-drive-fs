@@ -9,6 +9,10 @@ cache:
     paths:
         - node_modules/
 
+before_script:
+    - apt-get update
+    - apt-get install libfuse-dev -y
+
 build:
     stage: build
     script:
