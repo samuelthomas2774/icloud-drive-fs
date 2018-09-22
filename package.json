@@ -17,7 +17,8 @@
         "pump": "^3.0.0"
     },
     "scripts": {
-        "start": "node dist/cli.js"
+        "start": "node dist/cli.js",
+        "lint": "eslint src"
     },
     "bin": {
         "icloud-drive-fs": "dist/cli.js"

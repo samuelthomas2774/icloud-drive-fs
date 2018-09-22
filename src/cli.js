@@ -9,7 +9,8 @@ import iCloudService from '../../api';
 import mount from '..';
 
 const apple_id = process.argv[2];
-const mount_path = yargs.argv.mount || process.platform !== 'win32' ? path.resolve(__dirname, '..', 'mount') : 'M:\\';
+const mount_path = yargs.argv.mount ? path.resolve(process.cwd(), yargs.argv.mount) :
+    process.platform !== 'win32' ? path.resolve(__dirname, '..', 'mount') : 'M:\\';
 
 function prompt(message) {
     return new Promise((resolve, reject) => {

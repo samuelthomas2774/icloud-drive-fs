@@ -1,4 +1,3 @@
-import path from 'path';
 import fuse from './fuse';
 
 function parsePath(path) {
@@ -9,7 +8,7 @@ function parsePath(path) {
 
     if (path === '') {
         return {
-            fullpaths: []
+            fullpaths: [],
         };
     }
 
@@ -20,7 +19,7 @@ function parsePath(path) {
         return {
             zone,
             paths: [],
-            fullpaths: [zone]
+            fullpaths: [zone],
         };
     }
 
@@ -33,16 +32,14 @@ function parsePath(path) {
         zone,
         path,
         paths: path.split('/'),
-        fullpaths: [zone].concat(path)
+        fullpaths: [zone].concat(path),
     };
 }
 
 export default async function mount(icloud, mount_path, mount_options) {
-    const root = await icloud.drive['com.apple.CloudDocs'];
-
     const libraries = await icloud.drive.getAppLibraries();
 
-    const cache = new Map();
+    // const cache = new Map();
 
     await fuse.mount(mount_path, {
         async readdir(path, cb) {
@@ -78,12 +75,13 @@ export default async function mount(icloud, mount_path, mount_options) {
                     size: 100,
                     mode: 16877,
                     uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
+                    gid: process.getgid ? process.getgid() : 0,
                 };
             }
 
             if (path.substr(0, 7) === '/.info/' && path.substr(-5, 5) === '.info') {
-                const data = JSON.stringify(await icloud.drive.getItemByPath(...path.substr(7, path.length - 7 - 5).split('/')), null, 4) + '\n';
+                const item = await icloud.drive.getItemByPath(...path.substr(7, path.length - 7 - 5).split('/'));
+                const data = JSON.stringify(item, null, 4) + '\n';
 
                 return {
                     mtime: new Date(),
@@ -93,7 +91,7 @@ export default async function mount(icloud, mount_path, mount_options) {
                     size: data.length,
                     mode: 33188,
                     uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
+                    gid: process.getgid ? process.getgid() : 0,
                 };
             }
 
@@ -114,7 +112,7 @@ export default async function mount(icloud, mount_path, mount_options) {
                     size: 100,
                     mode: 16877,
                     uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
+                    gid: process.getgid ? process.getgid() : 0,
                 };
             }
 
@@ -127,9 +125,10 @@ export default async function mount(icloud, mount_path, mount_options) {
                     ctime: new Date(),
                     nlink: 1,
                     size: item.type === 'FILE' ? item.size : 100,
-                    mode: item.type === 'FILE' ? 33188 : item instanceof icloud.drive.constructor.Directory ? 16877 : 0,
+                    mode: item.type === 'FILE' ? 33188 :
+                        item instanceof icloud.drive.constructor.Directory ? 16877 : 0,
                     uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
+                    gid: process.getgid ? process.getgid() : 0,
                 };
             } catch (err) {
                 throw fuse.ENOENT;
@@ -144,7 +143,7 @@ export default async function mount(icloud, mount_path, mount_options) {
                     size: 12,
                     mode: 33188,
                     uid: process.getuid ? process.getuid() : 0,
-                    gid: process.getgid ? process.getgid() : 0
+                    gid: process.getgid ? process.getgid() : 0,
                 };
             }
 
@@ -156,7 +155,8 @@ export default async function mount(icloud, mount_path, mount_options) {
         },
         async read(path, fd, buffer, length, position, cb) {
             if (path.substr(0, 7) === '/.info/' && path.substr(-5, 5) === '.info') {
-                const data = JSON.stringify(await icloud.drive.getItemByPath(...path.substr(7, path.length - 7 - 5).split('/')), null, 4) + '\n';
+                const item = await icloud.drive.getItemByPath(...path.substr(7, path.length - 7 - 5).split('/'));
+                const data = JSON.stringify(item, null, 4) + '\n';
                 const selected = data.substr(position, position + length);
                 buffer.write(selected);
                 return selected.length;
@@ -167,11 +167,11 @@ export default async function mount(icloud, mount_path, mount_options) {
             if (!str) return 0;
             buffer.write(str);
             return str.length;
-        }
+        },
     }, mount_options || [
         'force',
         'noappledouble',
         'volname=iCloud Drive',
-        'fsname=icloud#' + icloud.apple_id
+        'fsname=icloud#' + icloud.apple_id,
     ]);
 }
