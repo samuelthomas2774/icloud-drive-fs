@@ -4,6 +4,7 @@ import path from 'path';
 import readline from 'readline';
 import yargs from 'yargs';
 import fuse from './fuse';
+import keytar from 'keytar';
 
 import iCloudService from '@samuelthomas2774/icloud-api';
 import mount from '..';
@@ -29,7 +30,15 @@ process.on('SIGINT', () => process.stdout.write('\u001B[28m'));
     let password;
 
     try {
-        password = await prompt(`Password for ${apple_id}: \u001B[8m`);
+        password = await keytar.getPassword('icloud-drive-fs', apple_id);
+
+        if (!password) {
+            password = await prompt(`Password for ${apple_id}: \u001B[8m`);
+
+            const save_password = await prompt(`Save password in system keychain (Y/n)? `);
+
+            if (!save_password.match(/n/i)) await keytar.setPassword('icloud-drive-fs', apple_id, password);
+        }
     } finally {
         process.stdout.write('\u001B[28m');
     }
