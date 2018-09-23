@@ -11,7 +11,7 @@ cache:
 
 before_script:
     - apt-get update
-    - apt-get install libfuse-dev -y
+    - apt-get install libfuse-dev libsecret-1-dev -y
 
 build:
     stage: build

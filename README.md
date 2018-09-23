@@ -16,6 +16,9 @@ Mounts iCloud Drive as a FUSE filesystem.
 Installation
 ---
 
+- libfuse/FUSE for macOS/Dokany https://www.npmjs.com/package/fuse-bindings#requirements
+- (Linux) libsecret https://www.npmjs.com/package/keytar#on-linux
+
 ### npm
 
 ```
