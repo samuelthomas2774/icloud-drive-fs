@@ -5,6 +5,7 @@ import readline from 'readline';
 import yargs from 'yargs';
 import fuse from './fuse';
 import keytar from 'keytar';
+import _mkdirp from 'mkdirp';
 
 import iCloudService from '@samuelthomas2774/icloud-api';
 import mount from '..';
@@ -12,6 +13,12 @@ import mount from '..';
 const apple_id = process.argv[2];
 const mount_path = yargs.argv.mount ? path.resolve(process.cwd(), yargs.argv.mount) :
     process.platform !== 'win32' ? path.resolve(__dirname, '..', 'mount') : 'M:\\';
+
+function mkdirp(dir, opts) {
+    return new Promise((resolve, reject) => {
+        _mkdirp(dir, opts, (err, made) => err ? reject(err) : resolve(made));
+    });
+}
 
 function prompt(message) {
     return new Promise((resolve, reject) => {
@@ -51,6 +58,10 @@ process.on('SIGINT', () => process.stdout.write('\u001B[28m'));
     if (icloud.requires_2sa) {
         throw new Error('Account requires two step authentication');
     }
+
+    const created_mount_path = await mkdirp(mount_path);
+
+    if (created_mount_path) console.log('Created ' + created_mount_path);
 
     console.log('Mounting at ' + mount_path);
 

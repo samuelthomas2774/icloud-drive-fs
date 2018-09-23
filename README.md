@@ -27,8 +27,9 @@ npm install -g icloud-drive-fs
 ```
 git clone https://gitlab.fancy.org.uk/samuel/icloud-drive-fs
 cd icloud-drive-fs
-npm link
 npx gulp build # or npx gulp watch
+
+node dist/cli.js apple-id --mount /path/to/mount
 ```
 
 Usage
