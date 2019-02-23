@@ -44,7 +44,20 @@ export default async function mount(icloud, mount_path, mount_options) {
     await fuse.mount(mount_path, {
         async readdir(path, cb) {
             if (path === '/.info' || path.substr(0, 7) === '/.info/') {
-                return [];
+                path = parsePath(path.substr(6));
+
+                // List zones
+                if (!path.zone) {
+                    const items = libraries.map(l => l.zone).concat(['com.apple.CloudDocs']);
+
+                    return items.concat(items.map(item => item + '.info'));
+                }
+
+                const item = await icloud.drive.getItemByPath(...path.fullpaths);
+                const items = await item.items;
+
+                return items.map(item => item.name + '.info').concat(
+                    items.filter(item => item instanceof icloud.drive.constructor.Directory).map(item => item.name));
             }
 
             console.log('readdir(%s)', path);
@@ -124,8 +137,8 @@ export default async function mount(icloud, mount_path, mount_options) {
                     atime: item.date_accessed,
                     ctime: new Date(),
                     nlink: 1,
-                    size: item.type === 'FILE' ? item.size : 100,
-                    mode: item.type === 'FILE' ? 33188 :
+                    size: item instanceof icloud.drive.constructor.File ? item.size : 100,
+                    mode: item instanceof icloud.drive.constructor.File ? 33188 :
                         item instanceof icloud.drive.constructor.Directory ? 16877 : 0,
                     uid: process.getuid ? process.getuid() : 0,
                     gid: process.getgid ? process.getgid() : 0,

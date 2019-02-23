@@ -1,6 +1,7 @@
 {
     "name": "icloud-drive-fs",
     "version": "0.2.1",
+    "description": "Mount iCloud Drive as a FUSE filesystem.",
     "homepage": "https://gitlab.fancy.org.uk/samuel/icloud-drive-fs",
     "bugs": "https://gitlab.fancy.org.uk/samuel/icloud-drive-fs/issues",
     "repository": {

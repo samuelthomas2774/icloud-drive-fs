@@ -17,6 +17,7 @@ Installation
 ---
 
 - libfuse/FUSE for macOS/Dokany https://www.npmjs.com/package/fuse-bindings#requirements
+    - (macOS) pkg-config
 - (Linux) libsecret https://www.npmjs.com/package/keytar#on-linux
 
 ### npm
