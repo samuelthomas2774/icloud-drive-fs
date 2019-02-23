@@ -4,7 +4,7 @@ import fuse from './fuse';
 
 const fs_open = (...args) => new Promise((rs, rj) => fs.open(...args, (err, fd) => err ? rj(err) : rs(fd)));
 const fs_read = (...args) => new Promise((rs, rj) => fs.read(...args, (err, bytesRead, buffer) => err ? rj(err) : rs({bytesRead, buffer})));
-const fs_write = (...args) => new Promise((rs, rj) => fs.write(...args, (err, bytesWritten, buffer) => err ? rj(err) : rs({bytesWritten, buffer})));
+// const fs_write = (...args) => new Promise((rs, rj) => fs.write(...args, (err, bytesWritten, buffer) => err ? rj(err) : rs({bytesWritten, buffer})));
 const fs_close = (...args) => new Promise((rs, rj) => fs.close(...args, err => err ? rj(err) : rs()));
 const fs_stat = (...args) => new Promise((rs, rj) => fs.stat(...args, (err, stat) => err ? rj(err) : rs(stat)));
 
@@ -73,7 +73,7 @@ export default async function mount(icloud, mount_path, cache_path, mount_option
             const free_storage = storage_usage.total_storage - storage_usage.used_storage;
 
             const total_blocks = Math.ceil(storage_usage.total_storage / 1000000);
-            const used_blocks = Math.ceil(storage_usage.used_storage / 1000000);
+            // const used_blocks = Math.ceil(storage_usage.used_storage / 1000000);
             const free_blocks = Math.ceil(free_storage / 1000000);
 
             return {
@@ -237,7 +237,7 @@ export default async function mount(icloud, mount_path, cache_path, mount_option
                 const download = await item.getDownloadLink();
                 const url = download.data_token ? download.data_token.url
                     : download.manifest_token ? download.manifest_token.url
-                    : undefined;
+                        : undefined;
 
                 if (!url) throw new Error('No download URL for', path);
 
@@ -258,7 +258,7 @@ export default async function mount(icloud, mount_path, cache_path, mount_option
         release(path, fd) {
             console.log('release(%s, %d)', path, fd);
 
-            const item = open_files.get(fd);
+            // const item = open_files.get(fd);
 
             open_files.delete(fd);
         },
