@@ -1,10 +1,12 @@
 import fs from 'fs';
+import request from 'request';
 import fuse from './fuse';
 
 const fs_open = (...args) => new Promise((rs, rj) => fs.open(...args, (err, fd) => err ? rj(err) : rs(fd)));
 const fs_read = (...args) => new Promise((rs, rj) => fs.read(...args, (err, bytesRead, buffer) => err ? rj(err) : rs({bytesRead, buffer})));
 const fs_write = (...args) => new Promise((rs, rj) => fs.write(...args, (err, bytesWritten, buffer) => err ? rj(err) : rs({bytesWritten, buffer})));
 const fs_close = (...args) => new Promise((rs, rj) => fs.close(...args, err => err ? rj(err) : rs()));
+const fs_stat = (...args) => new Promise((rs, rj) => fs.stat(...args, (err, stat) => err ? rj(err) : rs(stat)));
 
 function parsePath(path) {
     // What?
@@ -226,6 +228,28 @@ export default async function mount(icloud, mount_path, cache_path, mount_option
             }
 
             // Download the file
+            let stat;
+            try {
+                stat = await fs_stat(getCacheFilename(item, cache_path));
+            } catch (err) {}
+
+            if (!stat || stat.mtime.getTime() <= item.date_modified.getTime()) {
+                const download = await item.getDownloadLink();
+                const url = download.data_token ? download.data_token.url
+                    : download.manifest_token ? download.manifest_token.url
+                    : undefined;
+
+                if (!url) throw new Error('No download URL for', path);
+
+                console.log('Downloading', path, 'from', url, download);
+                await new Promise((resolve, reject) => {
+                    request(url).pipe(fs.createWriteStream(getCacheFilename(item, cache_path)))
+                        .on('close', err => err ? reject(err) : resolve());
+                });
+                console.log('Finished downloading', path, '- returning fd', fd);
+            } else {
+                console.log('Using cache for', path, '- returning fd', fd);
+            }
 
             open_files.set(fd, item);
 
