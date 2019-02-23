@@ -1,4 +1,6 @@
 node_modules
 dist
+
 mount
-mount-2
+mount-*
+cache

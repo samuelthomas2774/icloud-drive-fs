@@ -1,4 +1,10 @@
+import fs from 'fs';
 import fuse from './fuse';
+
+const fs_open = (...args) => new Promise((rs, rj) => fs.open(...args, (err, fd) => err ? rj(err) : rs(fd)));
+const fs_read = (...args) => new Promise((rs, rj) => fs.read(...args, (err, bytesRead, buffer) => err ? rj(err) : rs({bytesRead, buffer})));
+const fs_write = (...args) => new Promise((rs, rj) => fs.write(...args, (err, bytesWritten, buffer) => err ? rj(err) : rs({bytesWritten, buffer})));
+const fs_close = (...args) => new Promise((rs, rj) => fs.close(...args, err => err ? rj(err) : rs()));
 
 function parsePath(path) {
     // What?
@@ -32,17 +38,57 @@ function parsePath(path) {
         zone,
         path,
         paths: path.split('/'),
-        fullpaths: [zone].concat(path),
+        fullpaths: [zone].concat(path.split('/')),
     };
 }
 
-export default async function mount(icloud, mount_path, mount_options) {
+function getCacheFilename(item, cache_path) {
+    return require('path').resolve(cache_path, 'File.' + item.drivewsid + '.' + (item.extension || 'data'));
+}
+
+export default async function mount(icloud, mount_path, cache_path, mount_options) {
     const libraries = await icloud.drive.getAppLibraries();
+
+    const open_files = new Map();
+    let next_fd = 1;
 
     // const cache = new Map();
 
+    let storage_usage;
+    let last_updated_usage;
+
     await fuse.mount(mount_path, {
-        async readdir(path, cb) {
+        async statfs(path) {
+            const block_size = 1000000; // 1 MB
+
+            if (!storage_usage || (last_updated_usage < Date.now() - 10000)) {
+                storage_usage = await icloud.getStorageUsage();
+                last_updated_usage = Date.now();
+
+                console.log('Storage usage', storage_usage);
+            }
+
+            const free_storage = storage_usage.total_storage - storage_usage.used_storage;
+
+            const total_blocks = Math.ceil(storage_usage.total_storage / 1000000);
+            const used_blocks = Math.ceil(storage_usage.used_storage / 1000000);
+            const free_blocks = Math.ceil(free_storage / 1000000);
+
+            return {
+                bsize: block_size, // Block size
+                frsize: block_size, // Fragment size
+                blocks: total_blocks, // Total blocks
+                bfree: free_blocks, // Free blocks
+                bavail: free_blocks, // Blocks available to user
+                files: 1000000, // Total file nodes
+                ffree: 1000000, // Free file nodes
+                favail: 1000000,
+                fsid: 1000000, // Filesystem ID
+                flag: 1000000,
+                namemax: 1000000,
+            };
+        },
+        async readdir(path) {
             if (path === '/.info' || path.substr(0, 7) === '/.info/') {
                 path = parsePath(path.substr(6));
 
@@ -62,7 +108,7 @@ export default async function mount(icloud, mount_path, mount_options) {
 
             console.log('readdir(%s)', path);
             path = parsePath(path);
-            console.log('Zone/path:', path);
+            // console.log('Zone/path:', path);
 
             // List zones
             if (!path.zone) {
@@ -78,7 +124,7 @@ export default async function mount(icloud, mount_path, mount_options) {
                 throw fuse.ENOENT;
             }
         },
-        async getattr(path, cb) {
+        async getattr(path) {
             if (path === '/.info' || path.substr(0, 7) === '/.info/' && path.substr(-5, 5) !== '.info') {
                 return {
                     mtime: new Date(),
@@ -108,9 +154,9 @@ export default async function mount(icloud, mount_path, mount_options) {
                 };
             }
 
-            console.log('getattr(%s)', path);
+            // console.log('getattr(%s)', path);
             path = parsePath(path);
-            console.log('Zone/path:', path);
+            // console.log('Zone/path:', path);
 
             if (path.zone && path.zone !== 'com.apple.CloudDocs' && !libraries.find(l => l.zone === path.zone)) {
                 throw fuse.ENOENT;
@@ -131,6 +177,8 @@ export default async function mount(icloud, mount_path, mount_options) {
 
             try {
                 const item = await icloud.drive.getItemByPath(...path.fullpaths);
+
+                if (!item) throw fuse.ENOENT;
 
                 return {
                     mtime: item.date_modified,
@@ -162,11 +210,35 @@ export default async function mount(icloud, mount_path, mount_options) {
 
             throw fuse.ENOENT;
         },
-        open(path, flags, cb) {
+        async open(path, flags) {
             console.log('open(%s, %d)', path, flags);
-            return 42;
+
+            const fd = next_fd++;
+            console.log('Assigned file descriptor', fd);
+
+            path = parsePath(path);
+            console.log('Zone/path:', path);
+
+            const item = await icloud.drive.getItemByPath(...path.fullpaths);
+
+            if (!item instanceof icloud.drive.constructor.File) {
+                throw fuse.EISDIR;
+            }
+
+            // Download the file
+
+            open_files.set(fd, item);
+
+            return fd;
         },
-        async read(path, fd, buffer, length, position, cb) {
+        release(path, fd) {
+            console.log('release(%s, %d)', path, fd);
+
+            const item = open_files.get(fd);
+
+            open_files.delete(fd);
+        },
+        async read(path, fd, buffer, length, position) {
             if (path.substr(0, 7) === '/.info/' && path.substr(-5, 5) === '.info') {
                 const item = await icloud.drive.getItemByPath(...path.substr(7, path.length - 7 - 5).split('/'));
                 const data = JSON.stringify(item, null, 4) + '\n';
@@ -175,16 +247,28 @@ export default async function mount(icloud, mount_path, mount_options) {
                 return selected.length;
             }
 
+            const item = open_files.get(fd);
             console.log('read(%s, %d, %d, %d)', path, fd, length, position);
-            const str = 'hello world\n'.slice(position, position + length);
-            if (!str) return 0;
-            buffer.write(str);
-            return str.length;
+
+            if (!item) {
+                const str = 'hello world\n'.slice(position, position + length);
+                if (!str) return 0;
+                buffer.write(str);
+                return str.length;
+            }
+
+            const cachefd = await fs_open(getCacheFilename(item, cache_path), 'r');
+            const {bytesRead} = await fs_read(cachefd, buffer, /* offset */ 0, /* length */ length, /* position */ position);
+            await fs_close(cachefd);
+
+            return bytesRead;
         },
     }, mount_options || [
         'force',
         'noappledouble',
-        'volname=iCloud Drive',
+        'volname=' + icloud.ds_info.fullName + '\'s iCloud Drive',
+        // 'fsid=' + icloud.ds_info.dsid,
         'fsname=icloud#' + icloud.apple_id,
+        'volicon=/System/Library/PreferencePanes/iCloudPref.prefPane/Contents/Resources/iCloud.icns',
     ]);
 }

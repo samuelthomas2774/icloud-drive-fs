@@ -10,12 +10,12 @@ function wrapHandler(handler, no_code) {
 
         try {
             const result = await handler.call(undefined, ...args, fuse.context());
-            console.debug('Handler', handler.name, 'returned', result, '- returning', no_code ? [result] : [0, result]);
+            // console.debug('Handler', handler.name, 'returned', result, '- returning', no_code ? [result] : [0, result]);
 
             if (no_code) callback(result);
             else callback(0, result);
         } catch (err) {
-            console.error('Handler', handler.name, 'threw', err, '- returning', err);
+            console.error('Handler', handler.name, 'threw', err, '- returning', err, 'for', args);
 
             callback(err);
         }

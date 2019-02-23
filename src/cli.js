@@ -13,6 +13,8 @@ import mount from '..';
 const apple_id = process.argv[2];
 const mount_path = yargs.argv.mount ? path.resolve(process.cwd(), yargs.argv.mount) :
     process.platform !== 'win32' ? path.resolve(__dirname, '..', 'mount') : 'M:\\';
+const cache_path = yargs.argv.cache ? path.resolve(process.cwd(), yargs.argv.cache) :
+    path.resolve(__dirname, '..', 'cache');
 
 function mkdirp(dir, opts) {
     return new Promise((resolve, reject) => {
@@ -41,6 +43,7 @@ process.on('SIGINT', () => process.stdout.write('\u001B[28m'));
 
         if (!password) {
             password = await prompt(`Password for ${apple_id}: \u001B[8m`);
+            process.stdout.write('\u001B[28m');
 
             const save_password = await prompt(`Save password in system keychain (Y/n)? `);
 
@@ -60,14 +63,23 @@ process.on('SIGINT', () => process.stdout.write('\u001B[28m'));
     }
 
     const created_mount_path = await mkdirp(mount_path);
-
     if (created_mount_path) console.log('Created ' + created_mount_path);
-
     console.log('Mounting at ' + mount_path);
 
-    await mount(icloud, mount_path);
+    const created_cache_path = await mkdirp(cache_path);
+    if (created_cache_path) console.log('Created ' + created_cache_path);
+    console.log('Caching at ' + cache_path);
+
+    await mount(icloud, mount_path, cache_path);
 
     console.log('Filesystem mounted at ' + mount_path);
+
+    if (yargs.argv.user || yargs.argv.group) {
+        console.log('Setting user/group to', yargs.argv.user || process.getuid(), yargs.argv.group || process.getgid());
+
+        if (yargs.argv.group) process.setgid(yargs.argv.group);
+        if (yargs.argv.user) process.setuid(yargs.argv.user);
+    }
 
     process.on('SIGINT', async () => {
         try {
